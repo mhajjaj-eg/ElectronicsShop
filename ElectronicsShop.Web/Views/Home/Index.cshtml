@@ -1,0 +1,177 @@
+﻿@inject IViewLocalizer Localizer
+@using Microsoft.AspNetCore.Identity
+@using ElectronicsShop.Models
+
+@inject SignInManager<ApplicationUser> SignInManager
+@inject UserManager<ApplicationUser> UserManager
+@{
+    ViewData["Title"] = "Home Page";
+}
+
+<div class="text-center">
+    <h1 class="display-4">@Localizer["OurProducts"]</h1>
+
+    <div class="container-fluid row" id="cardsContainer" data-bind="foreach:Products">
+        <div class="col">
+            <div class="card w-18" style="max-width: 18rem;">
+                <div class="card-header" data-bind="text:TypeName"> </div>
+                <img src="../img/Electronics.webp" class="card-img-top" alt="...">
+                <div class="card-body">
+                    <h5 class="card-title" data-bind="text:Name"></h5>
+                    <p class="card-text" data-bind="text:Description"></p>
+                    <span data-bind="html:orderBtn"> </span>
+                </div>
+                <div class="card-footer"> <span data-bind="html:priceTxt "></span data-bind="html: discountPerTwo "> <span></span> </div>
+            </div>
+        </div>
+    </div>
+
+  
+    <div class="row mt-3 justify-content-center">
+        <div class="col">
+            <div class="btn-group">
+                <button type="button" class="btn btn-primary" id="prevBtn" data-bind="disable:IsFirstPage"> <i class="fas fa-arrow-circle-left"></i> @Localizer["PreviousBtn"]</button>
+                <span id="navBtnsSpan" class="btn-group" data-bind="foreach:new Array(TotalPagesNumber()) ">
+                    <button class="btn btn-outline-primary" data-bind="text:$index()+1,class:(($parent.CurrentPageNumber() == $index()+1) ? ' active' : '') , event: { click: $parent.getProducts($index()+1) }"></button>
+                </span>
+                <button type="button" class="btn btn-primary" id="nextBtn" data-bind="disable:IsLastPage"> @Localizer["NextBtn"] <i class="fas fa-arrow-circle-right"></i></button>
+            </div>
+        </div>
+        <div class="col">
+            <label>@Localizer["Page"] <span id="pageNum" data-bind="text:CurrentPageNumber"></span> @Localizer["of"] <span id="totalPagesNum" data-bind="text:TotalPagesNumber"></span> @Localizer["Pages"]</label>
+        </div>
+    </div>
+</div>
+
+
+@section Scripts {
+
+    <script>
+        var urlPath = window.location.pathname;
+        $(function () {
+            ko.applyBindings(ProductListVM);
+            ProductListVM.getProducts(1);
+            ProductListVM.getProductCategories();
+        });
+        //View Model
+        var ProductListVM = {
+            TypeId: ko.observable(1),
+            CurrentPageNumber: ko.observable(1),
+            TotalPagesNumber: ko.observable(1),
+            IsFirstPage: ko.observable(true),
+            IsLastPage: ko.observable(true),
+            Products: ko.observableArray([]),
+            ProductCategories: ko.observableArray([]),
+            setProducts: function (data) {
+                var self = this;
+
+                data.GridRows.forEach(card => {
+
+                let priceTxt = (card.FinalPrice != card.Price) ?
+                    card.FinalPrice.toString().bold() + " @Localizer["EGP"] @Localizer["InsteadOf"] " + card.Price.toString().strike().fontcolor('red')
+                    : card.Price.toString().bold() + " @Localizer["EGP"]";
+
+                let discountPerTwo = (card.DiscountOfTwo > 0) ? "<hr/>" + "@Localizer["Buy2Discount"] " + card.DiscountOfTwo + " %" : "";
+
+                let orderBtn = "";
+                    @if (SignInManager.IsSignedIn(User))
+                    {
+                        @:if (card.QuantityInStock > 0)
+                        @:orderBtn = `<a href='/Home/AddNewOrder/${card.ProductId}' class='btn btn-primary'>@Localizer["OrderNow"]</a>`;
+                        @:else
+                        @:orderBtn = `<div class="alert alert-danger" role="alert">@Localizer["OutOfStock"]</div>`;
+                    }
+
+                    card.priceTxt=priceTxt;
+                    card.discountPerTwo=discountPerTwo;
+                    card.orderBtn=orderBtn;
+                    });
+
+
+
+                self.Products(data.GridRows);
+                self.IsFirstPage(data.IsFirstPage);
+                self.IsLastPage(data.IsLastPage);
+                self.CurrentPageNumber(data.CurrentPageNumber);
+                self.TotalPagesNumber(data.TotalPagesNumber);
+            },
+            getProducts: function (pageNum) {
+                var self = this;
+                General.sendAjax("/Home/Navigate", data => self.setProducts(data), { pageNum, TypeId: self.TypeId });
+            },
+            setProductCategories: function (data) {
+                var self = this;
+                self.ProductCategories(data);
+
+            },
+            getProductCategories: function () {
+                var self = this;
+                General.sendAjax("/AdminPanel/GetProductCategories", data => self.setProductCategories(data));
+            },
+        };
+        self.editProduct = function (Product) {
+            window.location.href = '/AdminPanel/Edit/' + Product.ProductId;
+        };
+        self.deleteProduct = function (Product) {
+            window.location.href = '/AdminPanel/Delete/' + Product.ProductId;
+        };
+
+    </script>
+
+
+   @* <script>
+        window.onload = (event) => {
+            loadProducts(1);
+        };
+
+        let drawCard = returnData => {
+            General.emptyNodeById('cardsContainer');
+            let cardsDiv = General.createElement({ Tag: 'div', classList: 'row justify-content-center' });
+
+            returnData.GridRows.forEach(card => {
+
+                let priceTxt = (card.FinalPrice != card.Price) ?
+                    card.FinalPrice.toString().bold() + " @Localizer["EGP"] @Localizer["InsteadOf"] " + card.Price.toString().strike().fontcolor('red')
+                    : card.Price.toString().bold() + " @Localizer["EGP"]";
+
+                let discountPerTwo = (card.DiscountOfTwo > 0) ? "<hr/>" + "@Localizer["Buy2Discount"] " + card.DiscountOfTwo + " %" : "";
+
+                let orderBtn = "";
+        @if (SignInManager.IsSignedIn(User))
+        {
+            @:if (card.QuantityInStock > 0)
+            @:orderBtn = `<a href='/Home/AddNewOrder/${card.ProductId}' class='btn btn-primary'>@Localizer["OrderNow"]</a>`;
+            @:else
+            @:orderBtn = `<div class="alert alert-danger" role="alert">@Localizer["OutOfStock"]</div>`;
+        }
+
+                    cardsDiv.innerHTML +=
+                `<div class="col">
+                                         <div class="card w-18" style="max-width: 18rem;">
+                                             <div class="card-header"> ${card.TypeName} </div>
+                                             <img src="../img/electronicsImg.jpg" class="card-img-top" alt="...">
+                                             <div class="card-body">
+                                                 <h5 class="card-title">${card.Name}</h5>
+                                                 <p class="card-text">${card.Description}</p>
+                                                 ${orderBtn}
+                                             </div>
+                                             <div class="card-footer"> ${priceTxt}  ${discountPerTwo} </div>
+                                         </div>
+                                     </div>`});
+            document.getElementById('cardsContainer').appendChild(cardsDiv);
+
+            let prevBtn = document.getElementById('prevBtn');
+            prevBtn.disabled = returnData.IsFirstPage;
+            prevBtn.onclick = loadProducts.bind(this, returnData.CurrentPageNumber - 1);
+
+            let nextBtn = document.getElementById('nextBtn');
+            nextBtn.disabled = returnData.IsLastPage;
+            nextBtn.onclick = loadProducts.bind(this, returnData.CurrentPageNumber + 1);
+        }
+
+        let loadProducts = pageNum => {
+            General.sendAjax("/Home/Navigate", data => drawCard(data), { pageNum })
+        };
+    </script>*@
+}
+

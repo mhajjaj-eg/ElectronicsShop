@@ -1,0 +1,114 @@
+﻿@inject IViewLocalizer Localizer
+@{
+    ViewData["Title"] = Localizer["ClientsOrders"];
+}
+
+<div class="container text-center">
+    <div class="row">
+        <div class="col">
+            <h1 class="display-4">@Localizer["ClientsOrders"]</h1>
+        </div>
+    </div>
+     <div class="row form-group ms-3 mb-3">
+        <div class="col-2">
+            <select class="custom-select form-control form-select" id="selectionsDiv" data-bind="options: ProductCategories,
+                       optionsText: 'Name',
+                       optionsValue: 'ProductCategoryId',
+                       value: TypeId,
+                       optionsCaption: '--@Localizer["SelectType"]--',event: { change:getOrders(CurrentPageNumber())}">
+            </select>
+        </div>
+       
+    </div>
+    <div class="row">
+        <div class="col">
+            <div class="container-fluid">
+                <table class="table table-striped table-hover table-sm">
+                    <thead class="table-dark">
+                        <tr>
+                            <th scope="col">@Localizer["ProductName"]</th>
+                            <th scope="col">@Localizer["ClientName"]</th>
+                            <th scope="col">@Localizer["ClientPhone"]</th>
+                            <th scope="col">@Localizer["PricePaid"]</th>
+                            <th scope="col">@Localizer["Quantity"]</th>
+                        </tr>
+                    </thead>
+                    <tbody id="gridBodyContainer" data-bind="foreach:Orders">
+                        <tr>
+                            <td data-bind="text:$data.ProductName"></td>
+                            <td data-bind="text:$data.ClientName"></td>
+                            <td data-bind="text:$data.ClientPhone"></td>
+                            <td data-bind="text:$data.PricePaid"></td>
+                            <td data-bind="text:$data.QuantityRequested"></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+     <div class="row">
+        <div class="col">
+            <div class="btn-group">
+                <button type="button" class="btn btn-primary" id="prevBtn" data-bind="disable:IsFirstPage"> <i class="fas fa-arrow-circle-left"></i> @Localizer["PreviousBtn"]</button>
+                <span id="navBtnsSpan" class="btn-group" data-bind="foreach:new Array(TotalPagesNumber()) ">
+                    <button class="btn btn-outline-primary" data-bind="text:$index()+1,class:(($parent.CurrentPageNumber() == $index()+1) ? ' active' : '') , event: { click: $parent.getOrders($index()+1) }"></button>
+                </span>
+                <button type="button" class="btn btn-primary" id="nextBtn" data-bind="disable:IsLastPage"> @Localizer["NextBtn"] <i class="fas fa-arrow-circle-right"></i></button>
+            </div>
+        </div>
+        <div class="col">
+            <label>@Localizer["Page"] <span id="pageNum" data-bind="text:CurrentPageNumber"></span> @Localizer["of"] <span id="totalPagesNum" data-bind="text:TotalPagesNumber"></span> @Localizer["Pages"]</label>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+
+
+    <script>
+        var urlPath = window.location.pathname;
+        $(function () {
+            ko.applyBindings(ProductListVM);
+            ProductListVM.getOrders(1);
+            ProductListVM.getProductCategories();
+        });
+        //View Model
+        var ProductListVM = {
+            TypeId: ko.observable(1),
+            CurrentPageNumber: ko.observable(1),
+            TotalPagesNumber: ko.observable(1),
+            IsFirstPage: ko.observable(true),
+            IsLastPage: ko.observable(true),
+            Orders: ko.observableArray([]),
+            ProductCategories: ko.observableArray([]),
+            setOrders: function (data) {
+                var self = this;
+                self.Orders(data.GridRows);
+                self.IsFirstPage(data.IsFirstPage);
+                self.IsLastPage(data.IsLastPage);
+                self.CurrentPageNumber(data.CurrentPageNumber);
+                self.TotalPagesNumber(data.TotalPagesNumber);
+            },
+            getOrders: function (pageNum) {
+                var self = this;
+                General.sendAjax("/AdminPanel/GetOrdersGridData", data => self.setOrders(data), { pageNum, TypeId: self.TypeId });
+            },
+            setProductCategories: function (data) {
+                var self = this;
+                self.ProductCategories(data);
+
+            },
+            getProductCategories: function () {
+                var self = this;
+                General.sendAjax("/AdminPanel/GetProductCategories", data => self.setProductCategories(data));
+            },
+        };
+       
+
+    </script>
+
+
+  
+}
+
+
